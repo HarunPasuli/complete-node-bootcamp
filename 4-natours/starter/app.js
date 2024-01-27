@@ -13,6 +13,7 @@ const globalErrorHandler = require("./controllers/errorController");
 const tourRouter = require("./routes/tourRoutes");
 const userRouter = require("./routes/userRoutes");
 const reviewRouter = require("./routes/reviewRoutes");
+const bookingRouter = require("./routes/bookingRoutes");
 const viewRouter = require("./routes/viewRoutes");
 
 const app = express();
@@ -25,7 +26,60 @@ app.set("views", path.join(__dirname, "views"));
 app.use(express.static(path.join(__dirname, "public")));
 
 // Set security HTTP headers
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        "default-src": [
+          "'self'",
+          "https://js.stripe.com/v3/",
+          "https://cdnjs.cloudflare.com"
+        ],
+        "script-src": [
+          "'self'",
+          "https://js.stripe.com/v3/",
+          "https://cdnjs.cloudflare.com"
+        ]
+      }
+    }
+  })
+);
+
+app.options("*", cors());
+
+// CONTENT SECURITY POLICY
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "script-src 'self' https://cdnjs.cloudflare.com https://js.stripe.com"
+  );
+  next();
+});
+
+const scriptSrcUrls = ["https://unpkg.com/", "https://tile.openstreetmap.org"];
+const styleSrcUrls = [
+  "https://unpkg.com/",
+  "https://tile.openstreetmap.org",
+  "https://fonts.googleapis.com/"
+];
+const connectSrcUrls = ["https://unpkg.com", "https://tile.openstreetmap.org"];
+const fontSrcUrls = ["fonts.googleapis.com", "fonts.gstatic.com"];
+
+//set security http headers
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: [],
+      connectSrc: ["'self'", ...connectSrcUrls],
+      scriptSrc: ["'self'", ...scriptSrcUrls],
+      styleSrc: ["'self'", "'unsafe-inline'", ...styleSrcUrls],
+      workerSrc: ["'self'", "blob:"],
+      objectSrc: [],
+      imgSrc: ["'self'", "blob:", "data:", "https:"],
+      fontSrc: ["'self'", ...fontSrcUrls]
+    }
+  })
+);
 
 // Development logging
 if (process.env.NODE_ENV === "development") {
@@ -77,6 +131,7 @@ app.use("/", viewRouter);
 app.use("/api/v1/tours", tourRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/reviews", reviewRouter);
+app.use("/api/v1/bookings", bookingRouter);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
